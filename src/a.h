@@ -1,3 +1,13 @@
+#ifndef A_DEBUG
+#define A_DEBUG 0
+#endif
+
+#ifndef A_RELEASE_ASSERT
+#define A_RELEASE_ASSERT 0
+#endif
+
+#include <stdarg.h>
+
 typedef signed __int8   i8;
 typedef signed __int16  i16;
 typedef signed __int32  i32;
@@ -49,10 +59,10 @@ typedef struct String
 
 #define CONCAT_(a, b) a##b
 #define CONCAT(a, b) CONCAT_(a, b)
-#define STATIC_ASSERT(EX)                                                          \
+#define STATIC_ASSERT(EX)                                                 \
 	struct CONCAT(STATIC_ASSERT_, CONCAT(__COUNTER__, CONCAT(_, __LINE__))) \
-	{                                                                                   \
-		int static_assert_fails_on_negative_bit_width : (EX) ? 1 : -1;                    \
+	{                                                                       \
+		int static_assert_fails_on_negative_bit_width : (EX) ? 1 : -1;        \
 	}
 
 #if A_DEBUG | A_RELEASE_ASSERT

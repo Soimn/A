@@ -10,11 +10,11 @@ set "root_dir=%cd%"
 set "build_dir=%root_dir%\build"
 set "src_dir=%root_dir%\src"
 
-set "common_comp_options=/GS- /Oi /W4 /wd4201"
+set "common_comp_options=/GS- /Oi /W4 /wd4201 -I%root_dir%"
 set "common_link_options=/INCREMENTAL:no /opt:icf /opt:ref libvcruntime.lib kernel32.lib %temp_link_libs%"
 
 if "%1"=="debug" (
-	set "comp_options=%common_comp_options% /DA_DEBUG /Od /Zo /Z7 /MTd /RTC1 /wd4100"
+	set "comp_options=%common_comp_options% /DA_DEBUG=1 /Od /Zo /Z7 /MTd /RTC1 /wd4100"
 	set "link_options=%common_link_options% libucrtd.lib libvcruntimed.lib"
 ) else if "%1"=="release" (
 	set "comp_options=%common_comp_options% /O2"
@@ -46,7 +46,7 @@ if "%3" neq "" (
 if not exist %build_dir% mkdir %build_dir%
 cd %build_dir%
 
-if /I "%build_engine%" EQU "1" cl /nologo /diagnostics:caret %comp_options% %src_dir%\a_win32.c /link %link_options% /fixed /SUBSYSTEM:windows /out:engine.exe /pdb:engine.pdb user32.lib
+if /I "%build_engine%" EQU "1" cl /nologo /diagnostics:caret %comp_options% %src_dir%\a_win32.c /link %link_options% /fixed /SUBSYSTEM:windows /out:engine.exe /pdb:engine.pdb user32.lib opengl32.lib gdi32.lib
 if /I "%build_game%"   EQU "1" cl /nologo /diagnostics:caret %comp_options% %src_dir%\a.c /LD /link %link_options% /out:game.dll
 
 :end

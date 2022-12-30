@@ -11,10 +11,8 @@
 #define NOCLIPBOARD       1 // Clipboard routines
 #define NOCTLMGR          1 // Control and Dialog routines
 #define NODRAWTEXT        1 // DrawText() and DT_*
-#define NOGDI             1 // All GDI defines and routines
 #define NOKERNEL          1 // All KERNEL defines and routines
 #define NONLS             1 // All NLS defines and routines
-#define NOMB              1 // MB_* and MessageBox()
 #define NOMEMMGR          1 // GMEM_*, LMEM_*, GHND, LHND, associated routines
 #define NOMETAFILE        1 // typedef METAFILEPICT
 #define NOMINMAX          1 // Macros min(a,b) and max(a,b)
@@ -55,10 +53,8 @@
 #undef NOCLIPBOARD
 #undef NOCTLMGR
 #undef NODRAWTEXT
-#undef NOGDI
 #undef NOKERNEL
 #undef NONLS
-#undef NOMB
 #undef NOMEMMGR
 #undef NOMETAFILE
 #undef NOMINMAX
@@ -80,11 +76,31 @@
 #undef near
 
 #include "a.h"
+#include "a_win32_gl.h"
 
+void
+FatalEngineError(char* format, ...)
+{
+	char buffer[1024];
+
+	va_list args;
+	va_start(args, format);
+	wvsprintfA(buffer, format, args);
+	va_end(args);
+
+	// NOTE: ensure avoiding buffer overrun when string is too long
+	buffer[ARRAY_SIZE(buffer) - 1] = 0;
+
+	MessageBoxA(0, buffer, "Fatal Engine Error", MB_OK | MB_ICONERROR);
+
+}
+
+// TODO: WndProc recieves the WM_CLOSE message when the close button is pressed
+//       but the window does not close if it hasn't been dragged after creation
 LRESULT
 WndProc(HWND window_handle, UINT msg_code, WPARAM wparam, LPARAM lparam)
 {
-	if (msg_code == WM_QUIT || msg_code == WM_CLOSE || msg_code == WM_DESTROY)
+	if (msg_code == WM_QUIT || msg_code == WM_CLOSE)
 	{
 		PostQuitMessage(0);
 		return 0;
@@ -98,47 +114,60 @@ WinMainCRTStartup()
 	HINSTANCE instance = GetModuleHandle(0);
 
 	WNDCLASSW window_class_info = {
-		.style         = 0, // TODO:
+		.style         = CS_OWNDC,
 		.lpfnWndProc   = &WndProc,
 		.cbClsExtra    = 0,
 		.cbWndExtra    = 0,
 		.hInstance     = instance,
 		.hIcon         = 0,
-		.hCursor       = 0, // TODO:
+		.hCursor       = LoadImageW(instance, IDC_ARROW, IMAGE_CURSOR, 0, 0, LR_DEFAULTSIZE),
 		.hbrBackground = 0,
 		.lpszMenuName  = 0,
 		.lpszClassName = L"CLASS NAME",
 	};
 
-	if (!RegisterClassW(&window_class_info))
-	{
-		NOT_IMPLEMENTED;
-	}
+	if (!RegisterClassW(&window_class_info)) FatalEngineError("Failed to register window class");
 	else
-	{
-		HWND window_handle = CreateWindowW(window_class_info.lpszClassName, L"WINDOW NAME", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, instance, 0);
-		if (window_handle == 0)
-		{
-			NOT_IMPLEMENTED;
-		}
+	{		
+		HWND window = CreateWindowW(window_class_info.lpszClassName, L"WINDOW NAME", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, instance, 0);
+
+		if (window == 0) FatalEngineError("Failed to create window");
 		else
 		{
-			ShowWindow(window_handle, SW_SHOW);
+			bool setup_failed = false;
 
-			bool is_running = true;
-			while (is_running)
+			HGLRC gl_context = 0;
+			if (!Win32GL_InitGLContextForWindow(instance, window, (bool)A_DEBUG, &gl_context))
 			{
-				MSG msg;
-				while (PeekMessageW(&msg, window_handle, 0, 0, PM_REMOVE))
+				FatalEngineError("Failed to initialize OpenGL");
+				setup_failed = true;
+			}
+
+			if (!setup_failed)
+			{
+				ShowWindow(window, SW_SHOW);
+
+				bool is_running = true;
+				while (is_running)
 				{
-					if (msg.message == WM_QUIT)
+					MSG msg;
+					while (PeekMessageW(&msg, window, 0, 0, PM_REMOVE))
 					{
-						is_running = false;
-						break;
+						if (msg.message == WM_QUIT)
+						{
+							is_running = false;
+							break;
+						}
+						else DispatchMessageW(&msg);
 					}
-					else DispatchMessageW(&msg);
+
+					HDC dc = GetDC(window);
+					SwapBuffers(dc);
+					ReleaseDC(window, dc);
 				}
 			}
+
+			Win32GL_DeinitGLContext(gl_context);
 		}
 	}
 
